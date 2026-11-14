@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The test tools need Node 22.12 or later; the `runtimes` job runs the
+        # built package on Node 20.19, the oldest the package supports.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: publint
+        run: npx publint --strict
+      - name: Are the types wrong
+        run: npx attw --pack . --profile esm-only
+      - name: Only the build and the docs are packed
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const [{ files }] = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+            const allowed = (p) => p.startsWith("dist/") || ["README.md", "CHANGELOG.md", "LICENSE", "package.json"].includes(p);
+            const stray = files.map((f) => f.path).filter((p) => !allowed(p));
+            if (stray.length) { console.error("::error::Unexpected files in the package: " + stray.join(", ")); process.exit(1); }
+            console.log(files.length + " files packed");
+          ' "$RUNNER_TEMP/pack.json"
+
+  runtimes:
+    name: Runtimes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20.19.0
+      - name: Node 20.19
+        run: |
+          node test/runtime/smoke.mjs
+          node -e "const { FlightByte } = require('./dist/index.js'); if (typeof FlightByte !== 'function') process.exit(1); console.log('require() works on Node', process.version)"
+
+      - uses: oven-sh/setup-bun@v2
+      - name: Bun
+        run: bun test/runtime/smoke.mjs
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Deno
+        run: deno run --allow-read test/runtime/smoke.mjs
