@@ -10,6 +10,16 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # typescript-eslint supports TypeScript below 6.1, and test/spec.test.ts
+      # reads the types through TypeScript's JavaScript API, which TypeScript 7
+      # does not offer in the same form. Move up once both do.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # Node's types stay on the oldest line the tests run on, so no API newer
+      # than the supported runtimes can slip into the tests.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
