@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    // src/ runs on Node, Bun, Deno and edge runtimes, so it sees only the
+    // web-standard globals (fetch, Request, crypto.subtle, AbortSignal), never
+    // Node's own types. A Node-only API in src/ fails the build.
+    "types": [],
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    // src/ is not shipped, so the maps carry the TypeScript inside them.
+    "sourceMap": true,
+    "inlineSources": true,
+    "newLine": "lf"
+  },
+  "include": ["src"]
+}

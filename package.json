@@ -1,0 +1,65 @@
+{
+  "name": "flightbyte",
+  "version": "0.1.0",
+  "description": "Official Node.js and TypeScript client for the FlightByte flight status API: look flights up, watch them with signed webhooks and verify every delivery. No dependencies; runs on Node, Bun, Deno and edge runtimes.",
+  "keywords": [
+    "flightbyte",
+    "flight-status",
+    "flight-tracking",
+    "flights",
+    "aviation",
+    "webhooks",
+    "api-client",
+    "sdk",
+    "typescript"
+  ],
+  "homepage": "https://flightbyte.dev/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FlightByte-dev/flightbyte-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FlightByte-dev/flightbyte-node/issues"
+  },
+  "license": "MIT",
+  "author": "FlightByte (https://flightbyte.dev)",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build",
+    "sync:openapi": "node scripts/sync-openapi.mjs",
+    "prepublishOnly": "npm run check"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.15.0",
+    "publint": "^0.3.25",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}
