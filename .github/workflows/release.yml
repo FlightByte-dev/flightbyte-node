@@ -1,4 +1,4 @@
-# Releases a version when a tag like v0.1.1 is pushed:
+# Releases a version when a tag like v1.0.1 is pushed:
 #   1. checks that the tag, package.json and src/version.ts agree and that
 #      CHANGELOG.md has a section for the version, then runs every check;
 #   2. publishes to npm with trusted publishing, unless that version is

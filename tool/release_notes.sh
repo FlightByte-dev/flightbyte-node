@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prints the CHANGELOG.md section of one version, without its heading.
 #
-#   tool/release_notes.sh 0.1.0
+#   tool/release_notes.sh 1.0.0
 set -euo pipefail
 
 version="${1:?usage: tool/release_notes.sh <version>}"

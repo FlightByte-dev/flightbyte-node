@@ -1,4 +1,4 @@
-## 0.1.0
+## 1.0.0
 
 - First release.
 - `FlightByte` with `flights` (`get`, `timeline`), `subscriptions` (`create`, `list`, `listAll`, `get`, `update`, `delete`, `pause`, `resume`, `sendTest`, `deliveries`, `events`, `secret`, `rotateSecret`) and `countries` (`list`, `get`, `flagUrl`).

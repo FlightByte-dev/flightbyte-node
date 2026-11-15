@@ -341,7 +341,7 @@ tool/release_notes.sh      a version's CHANGELOG.md section, for the GitHub rele
 
 1. Set `version` in `package.json` and `VERSION` in `src/version.ts`; a test fails if they differ.
 2. Give the version its own `## <version>` section in `CHANGELOG.md`.
-3. Push a tag such as `v0.1.1`.
+3. Push a tag such as `v1.0.1`.
 
 The release workflow checks that the tag, `package.json` and `src/version.ts` agree and that the changelog has the section, runs every check, publishes to npm with trusted publishing unless that version is already there, and creates the GitHub release from the changelog section. Run it by hand from the Actions tab to rehearse with `npm publish --dry-run`.
 

@@ -61,7 +61,7 @@ Maintainers only.
 
 1. Set `version` in `package.json` and `VERSION` in `src/version.ts`; a test fails if they differ.
 2. Rename `## Unreleased` in `CHANGELOG.md` to the new version.
-3. Push a tag `v<version>`, for example `v0.1.1`.
+3. Push a tag `v<version>`, for example `v1.0.1`.
 
 The release workflow checks that the tag, `package.json` and `src/version.ts` agree and that the changelog has the section, runs every check, publishes to npm with trusted publishing unless that version is already there, and creates the GitHub release from the version's `CHANGELOG.md` section. To rehearse a release without publishing anything, run the workflow by hand from the Actions tab.
 
