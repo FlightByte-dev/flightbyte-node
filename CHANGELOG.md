@@ -1,3 +1,7 @@
+## 1.0.1
+
+- The README logo shows on npm in the dark theme too: its images load from absolute URLs.
+
 ## 1.0.0
 
 - First release.
