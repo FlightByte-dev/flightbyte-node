@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FlightByteError, Webhook, WebhookSignatureError, type WebhookEvent } from '../src/index.js';
 import { parseSignature } from '../src/webhook.js';
 import { fixture } from './helpers/mock.js';
@@ -112,10 +112,15 @@ describe('Webhook.fetchHandler', () => {
     handle: (event: WebhookEvent) => unknown = () => undefined,
   ) {
     let received: WebhookEvent | undefined;
-    const handler = Webhook.fetchHandler(secret, (event) => {
-      received = event;
-      return handle(event);
-    });
+    let reported: unknown;
+    const handler = Webhook.fetchHandler(
+      secret,
+      (event) => {
+        received = event;
+        return handle(event);
+      },
+      { onError: (error) => (reported = error) },
+    );
     const headers = new Headers(init.headers);
     if (init.signature) headers.set('x-flightbyte-signature', init.signature);
     const request = new Request('https://receiver.test/hooks', {
@@ -125,7 +130,7 @@ describe('Webhook.fetchHandler', () => {
       ...(init.body instanceof ReadableStream ? { duplex: 'half' } : {}),
     } as RequestInit);
     const response = await handler(request);
-    return { status: response.status, text: await response.text(), received };
+    return { status: response.status, text: await response.text(), received, reported };
   }
 
   it('answers 200 and hands over the event', async () => {
@@ -139,6 +144,55 @@ describe('Webhook.fetchHandler', () => {
       throw new Error('db down');
     });
     expect(result.status).toBe(500);
+    expect(result.reported).toEqual(new Error('db down'));
+  });
+
+  it('reports what the handler throws with console.error by default', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const handler = Webhook.fetchHandler(secret, () => {
+        throw new Error('db down');
+      });
+      const response = await handler(
+        new Request('https://receiver.test/hooks', {
+          method: 'POST',
+          body: payload,
+          headers: { 'x-flightbyte-signature': await Webhook.sign(payload, secret) },
+        }),
+      );
+      expect(response.status).toBe(500);
+      expect(spy).toHaveBeenCalledOnce();
+      expect(String(spy.mock.calls[0]?.[0])).toContain('evt_2');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('still answers 500 when onError throws', async () => {
+    const handler = Webhook.fetchHandler(
+      secret,
+      () => {
+        throw new Error('db down');
+      },
+      {
+        onError: () => {
+          throw new Error('reporter down');
+        },
+      },
+    );
+    const response = await handler(
+      new Request('https://receiver.test/hooks', {
+        method: 'POST',
+        body: payload,
+        headers: { 'x-flightbyte-signature': await Webhook.sign(payload, secret) },
+      }),
+    );
+    expect(response.status).toBe(500);
+  });
+
+  it('refuses an empty secret when it is built', () => {
+    expect(() => Webhook.fetchHandler('', () => undefined)).toThrow(TypeError);
+    expect(() => Webhook.fetchHandler('  ', () => undefined)).toThrow(/secret is empty/);
   });
 
   it('answers 500 when the handler rejects', async () => {
@@ -180,6 +234,16 @@ describe('Webhook.fetchHandler', () => {
       },
     });
     expect((await deliver({ body: stream, signature: 't=1,v1=00' })).status).toBe(413);
+  });
+});
+
+describe('an empty secret', () => {
+  it.each(['', '   '])('is refused by verify, isValid, constructEvent and sign: %j', async (empty) => {
+    const forged = `t=${vectors.timestamp},v1=${'0'.repeat(64)}`;
+    await expect(Webhook.verify(payload, forged, empty, { now: at })).rejects.toThrow(TypeError);
+    await expect(Webhook.isValid(payload, forged, empty, { now: at })).rejects.toThrow(/secret is empty/);
+    await expect(Webhook.constructEvent(payload, forged, empty, { now: at })).rejects.toThrow(TypeError);
+    await expect(Webhook.sign(payload, empty)).rejects.toThrow(TypeError);
   });
 });
 

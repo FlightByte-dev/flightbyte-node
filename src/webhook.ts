@@ -12,6 +12,15 @@ export interface VerifyOptions {
   now?: Date | number;
 }
 
+/** Options for {@link Webhook.fetchHandler}. */
+export interface FetchHandlerOptions extends VerifyOptions {
+  /**
+   * Called with what `handle` threw, after the handler answered 500 so the
+   * API retries the delivery. Defaults to `console.error`.
+   */
+  onError?: (error: unknown, event: WebhookEvent, request: Request) => void;
+}
+
 /** The payload as received: the raw body, before any JSON parsing. */
 export type WebhookPayload = string | Uint8Array;
 
@@ -53,6 +62,8 @@ export class Webhook {
    * `express.raw({ type: 'application/json' })`, not `express.json()`.
    *
    * @throws {@link WebhookSignatureError} when the signature does not verify.
+   * @throws `TypeError` when `secret` is empty: anyone can sign with an empty
+   * key, so it usually means the secret was not configured.
    */
   static async verify(
     payload: WebhookPayload,
@@ -60,6 +71,7 @@ export class Webhook {
     secret: string,
     options: VerifyOptions = {},
   ): Promise<void> {
+    checkSecret(secret);
     const { timestamp, signatures } = parseSignature(signature);
 
     const tolerance = options.toleranceSeconds ?? Webhook.DEFAULT_TOLERANCE_SECONDS;
@@ -126,6 +138,7 @@ export class Webhook {
    * `x-flightbyte-signature` header value. Useful for testing your receiver.
    */
   static async sign(payload: WebhookPayload, secret: string, options: { timestamp?: Date | number } = {}): Promise<string> {
+    checkSecret(secret);
     const timestamp = String(Math.floor(toMillis(options.timestamp ?? Date.now()) / 1000));
     const key = await hmacKey(secret);
     const mac = await crypto.subtle.sign('HMAC', key, signedMessage(timestamp, payload));
@@ -141,6 +154,11 @@ export class Webhook {
    * It answers 401 when the signature does not verify, 400 when the body is
    * not an event, 500 when `handle` throws (so FlightByte retries) and 200
    * otherwise. Retries carry the same event id: deduplicate on `event.id`.
+   * What `handle` throws goes to `options.onError`, by default
+   * `console.error`.
+   *
+   * It throws a `TypeError` right away when `secret` is empty, so an unset
+   * environment variable fails at startup instead of accepting forged events.
    *
    * ```ts
    * // Next.js App Router: app/api/flightbyte/route.ts
@@ -152,8 +170,11 @@ export class Webhook {
   static fetchHandler(
     secret: string,
     handle: (event: WebhookEvent, request: Request) => unknown,
-    options?: VerifyOptions,
+    options: FetchHandlerOptions = {},
   ): (request: Request) => Promise<Response> {
+    checkSecret(secret);
+    if (typeof handle !== 'function') throw new TypeError('flightbyte: fetchHandler needs a handle function.');
+    const { onError = reportHandlerError, ...verifyOptions } = options;
     return async (request) => {
       if (request.method !== 'POST') {
         return new Response('method not allowed', { status: 405, headers: { allow: 'POST' } });
@@ -168,7 +189,12 @@ export class Webhook {
       }
       let event: WebhookEvent;
       try {
-        event = await Webhook.constructEvent(payload, request.headers.get(Webhook.SIGNATURE_HEADER), secret, options);
+        event = await Webhook.constructEvent(
+          payload,
+          request.headers.get(Webhook.SIGNATURE_HEADER),
+          secret,
+          verifyOptions,
+        );
       } catch (error) {
         return error instanceof WebhookSignatureError
           ? new Response('invalid signature', { status: 401 })
@@ -176,7 +202,12 @@ export class Webhook {
       }
       try {
         await handle(event, request);
-      } catch {
+      } catch (error) {
+        try {
+          onError(error, event, request);
+        } catch {
+          // A failing reporter must not change the answer.
+        }
         return new Response('handler failed', { status: 500 });
       }
       return new Response('ok', { status: 200 });
@@ -209,6 +240,18 @@ export function parseSignature(header: string | null | undefined): { timestamp: 
 }
 
 const encoder = new TextEncoder();
+
+function checkSecret(secret: string): void {
+  if (typeof secret !== 'string' || secret.trim() === '') {
+    throw new TypeError(
+      'flightbyte: the webhook signing secret is empty. Anyone can sign with an empty key; set the subscription\'s secret.',
+    );
+  }
+}
+
+function reportHandlerError(error: unknown, event: WebhookEvent): void {
+  console.error(`flightbyte: the webhook handler failed for event ${event.id} (${event.type}):`, error);
+}
 
 function hmacKey(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [

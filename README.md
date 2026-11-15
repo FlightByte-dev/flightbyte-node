@@ -151,7 +151,7 @@ FlightByte only delivers to public HTTPS addresses. To receive on your machine, 
 
 A receiver has to do four things, in this order: verify the signature against the **raw** body, deduplicate on the event id, answer `2xx` before doing the work, and branch on the event type.
 
-`Webhook.fetchHandler` does the first and answers for you: `401` for a bad signature, `400` for a body that is not an event, `500` when your function throws (so FlightByte retries) and `200` otherwise. It takes a `Request` and returns a `Response`, so it fits every runtime built on them:
+`Webhook.fetchHandler` does the first and answers for you: `401` for a bad signature, `400` for a body that is not an event, `500` when your function throws (so FlightByte retries) and `200` otherwise. What your function throws goes to `console.error`, or to the `onError` option. An empty secret throws a `TypeError` right away, because anyone can sign with an empty key: an unset environment variable fails at startup instead of accepting forged events. It takes a `Request` and returns a `Response`, so it fits every runtime built on them:
 
 ```ts
 import { Webhook } from 'flightbyte';

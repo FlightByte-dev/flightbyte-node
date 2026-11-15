@@ -34,4 +34,4 @@ export {
   type ListAllParams,
 } from './resources/subscriptions.js';
 export { VERSION } from './version.js';
-export { Webhook, type VerifyOptions, type WebhookPayload } from './webhook.js';
+export { Webhook, type FetchHandlerOptions, type VerifyOptions, type WebhookPayload } from './webhook.js';
