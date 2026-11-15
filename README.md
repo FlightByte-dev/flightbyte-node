@@ -268,13 +268,15 @@ try {
 
 A request you cancel with your own `AbortSignal` rejects with that signal's reason, as `fetch` does. Every status is explained in the [errors docs](https://flightbyte.dev/docs/errors).
 
-## Runs everywhere
+## Built for every JavaScript runtime
 
 - **Node, Bun, Deno, Cloudflare Workers and Vercel Edge.** The package uses only `fetch`, Web Crypto and other web-standard APIs, and CI runs it on Node, Bun and Deno. ES modules, with `require()` working on Node 20.19 and later.
 - **No dependencies.** Nothing to audit but this package.
 - **Your key stays on your server.** An API key or a signing secret shipped inside a browser or mobile app can be pulled out of it by anyone who has the app. Flag images are the exception: `countries.flagUrl` needs no key.
-- **Your key stays with the API.** The client never follows a redirect to another origin or from https to http, so a misdirected answer cannot carry the key elsewhere.
-- **The types follow the API.** The tests check every method and every type against the API's OpenAPI document, so a field the API adds shows up as a failing test here, not as a missing property in your code. A phase, status or change type added after this release is still a valid string.
+- **Your key stays with the API.** The client follows a redirect only for a read, and only on the API's own origin, so a misdirected answer cannot carry the key elsewhere and a write is never sent twice.
+- **New API values don't break old code.** A phase, status or change type added after this release is still a valid string. The tests check every method and every type against the API's OpenAPI document, so a field the API adds shows up as a failing test here first, not as a missing property in your code.
+- **Zero stays apart from unknown.** Fields the API may leave out are optional and fields it may send as `null` include `null`, so a delay of `0` and no delay reading are different things.
+- **Errors say what to do next.** A number that flies twice comes back with its legs, a `429` with how long to wait, a `402` with the reason and when the allowance resets.
 - **Quotas are visible.** `client.lastRateLimit` holds the minute, day and month windows from the latest response's `X-RateLimit-*` headers.
 
 ## Configuration
