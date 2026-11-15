@@ -6,7 +6,7 @@ This package verifies webhook signatures and carries API keys, so a flaw in it c
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | Yes |
+| 1.0.x | Yes |
 
 Fixes land in the latest release. Upgrade to it before reporting, if you can.
 
